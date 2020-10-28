@@ -30,9 +30,13 @@ struct skcipher_def {
     struct crypto_wait wait; // struct para requisicao
 };
 
-void encrypt(char *string,int size_of_string ,char* localKey, char* iv);
-static unsigned int test_skcipher_encdec(struct skcipher_def *sk, int enc);
-static int test_skcipher( char msgToEncypt[], char keyFromUser[], char ivFromUser[]);
+static unsigned int test_skcipher_encdec(struct skcipher_def *sk, int enc)/
+static int encode_trigger( char msgToEncypt[], char keyFromUser[]);
+static int decode_trigger(char msgToDecrypt[], char keyFromUser[]);
+void decrypt(char *string,int size_of_string, char* localKey);
+void encrypt(char *string,int size_of_string ,char* localKey);
+int hex_to_int(char c);
+int hex_to_ascii(char c, char d);
 
 
 /* Perform cipher operation */
