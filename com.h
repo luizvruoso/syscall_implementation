@@ -30,7 +30,7 @@ struct skcipher_def {
     struct crypto_wait wait; // struct para requisicao
 };
 
-static unsigned int test_skcipher_encdec(struct skcipher_def *sk, int enc)/
+static unsigned int test_skcipher_encdec(struct skcipher_def *sk, int enc);
 static int encode_trigger( char msgToEncypt[], char keyFromUser[]);
 static int decode_trigger(char msgToDecrypt[], char keyFromUser[]);
 void decrypt(char *string,int size_of_string, char* localKey);
@@ -264,7 +264,7 @@ static int decode_trigger(char msgToDecrypt[], char keyFromUser[]) //Inicia a de
         goto out;
 
 	resultdata = sg_virt(&sk.sg);
-    print_hex_dump(KERN_DEBUG, "Result Data Direct From Function Decrypt: ", DUMP_PREFIX_NONE, 16, 1, resultdata, 16, true);
+   // print_hex_dump(KERN_DEBUG, "Result Data Direct From Function Decrypt: ", DUMP_PREFIX_NONE, 16, 1, resultdata, 16, true);
    
     strcpy(msgToDecrypt, resultdata);
     pr_info("Decrypt triggered successfully\n");
@@ -285,7 +285,8 @@ out:
 
 void decrypt(char *string,int size_of_string, char* localKey){
 
-	printk(KERN_INFO "Chave Decrypt %s \n",localKey);	
+	print_hex_dump(KERN_DEBUG, "MENSAGEM CRIPTOGRADA - P/ DECRIPT: ", DUMP_PREFIX_NONE, 16, 1,
+               string, 16, true);
 
     int i = 0;
     char aux[33]={0};
@@ -294,19 +295,25 @@ void decrypt(char *string,int size_of_string, char* localKey){
     //strcpy(string, "df415e408da1fe7a82a92bc857eb17b1");
 
 
-    for(i = 0; i < 16; i++) {
-        aux[i] = hex_to_ascii(string[2*i],string[(2*i)+1]);
-    }
+   // for(i = 0; i < 16; i++) {
+     //   aux[i] = hex_to_ascii(string[2*i],string[(2*i)+1]);
+    //}
 
     
-    //print_hex_dump(KERN_DEBUG, "AUX result em hexa: ", DUMP_PREFIX_NONE, 32, 1, aux, 32, true);
-    
+    strcpy(aux, string);
+    print_hex_dump(KERN_DEBUG, "AUX AFTER COPY: ", DUMP_PREFIX_NONE, 16, 1, aux, 16, true);
+
     decode_trigger(aux, localKey);
     
     memset(string, 0, 100);
 
     strcpy(string, aux);
 	
+
+    print_hex_dump(KERN_DEBUG, "MENSAGEM DECRIPTOGRAFADA: ", DUMP_PREFIX_NONE, 16, 1,
+               string, 16, true);
+
+
     //print_hex_dump(KERN_DEBUG, "Result Data Decrypt: ", DUMP_PREFIX_NONE, 16, 1, aux, 16, true);
 
 	return;
@@ -315,12 +322,12 @@ void decrypt(char *string,int size_of_string, char* localKey){
 
 void encrypt(char *string,int size_of_string ,char* localKey){
 	//printk(KERN_INFO "Chave %s \n",localKey);	
-    print_hex_dump(KERN_DEBUG, "Result Data1: ", DUMP_PREFIX_NONE, 16, 1,
+     print_hex_dump(KERN_DEBUG, "MENSAGEM USER EM HEXA: ", DUMP_PREFIX_NONE, 16, 1,
                string, 16, true);
-    encode_trigger(string, localKey, iv);
-    print_hex_dump(KERN_DEBUG, "Result Data: ", DUMP_PREFIX_NONE, 16, 1,
+    encode_trigger(string, localKey);
+    print_hex_dump(KERN_DEBUG, "MENSAGEM CRIPTOGRAFADA: ", DUMP_PREFIX_NONE, 16, 1,
                string, 16, true);
-	return;
+    return;
 }
 
 
