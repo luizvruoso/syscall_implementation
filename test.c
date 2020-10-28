@@ -11,11 +11,11 @@ int main()
      printf("Digite um texto [max. 100 carac.]: ");
 	scanf("%[^\n]", text);
 
-    long int ret_status = syscall(334,fd,text,strlen(text)); 
+    long int ret_status = syscall(333,fd,text,strlen(text)); 
     close(fd);
     fd = open("./aqui.txt", O_RDONLY|O_CREAT, 0666);
     char rec[100];
-    long int ret_status2 = syscall(335,fd,rec,strlen(text));
+    long int ret_status2 = syscall(334,fd,rec,strlen(text));
     printf("%s",rec);
          
     if(ret_status >= 0) 
