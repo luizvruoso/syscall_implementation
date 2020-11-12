@@ -70,8 +70,8 @@ static int encode_trigger( char msgToEncypt[], char keyFromUser[]) //Inicia a en
     //char *ivdata = NULL;
     unsigned char key[32];
     int ret = -EFAULT;
-	char *resultdata = NULL;
-	int i=0;
+    char *resultdata = NULL;
+    int i=0;
 
     //printk("MSG: %s, Key: %s, IV: %s \n",msgToEncypt, keyFromUser, ivFromUser);
 
@@ -93,10 +93,8 @@ static int encode_trigger( char msgToEncypt[], char keyFromUser[]) //Inicia a en
     	crypto_req_done,
         &sk.wait);
 
-    /* AES 256 with random key */
-    /*PARA AES 128 SELECT 16 BYTES RANDOM*/
-    //get_random_bytes(&key, 32);
-	strcpy(key, keyFromUser);
+
+    strcpy(key, keyFromUser);
     if (crypto_skcipher_setkey(skcipher, key, 16)) {
         pr_info("key could not be set\n");
         ret = -EAGAIN;
@@ -107,27 +105,17 @@ static int encode_trigger( char msgToEncypt[], char keyFromUser[]) //Inicia a en
 			
 		
 
-    /* IV will be random */
-    /*ivdata = vmalloc(16);
-    if (!ivdata) {
-        pr_info("could not allocate ivdata\n");
-        goto out;
-    }
-    //get_random_bytes(ivdata, 16);
-	strcpy(ivdata, ivFromUser);*/
-
-    //print_hex_dump(KERN_DEBUG, "IVdata: ", DUMP_PREFIX_NONE, 16, 1, ivdata, 16, true);
-
-
-    /* Input data will be random */
-    scratchpad = vmalloc(16);
+ 
+    scratchpad = vmalloc(100);
     if (!scratchpad) {
         pr_info("could not allocate scratchpad\n");
         goto out;
     }
-    //get_random_bytes(scratchpad, 16);
-	strcpy(scratchpad, msgToEncypt); // copiando string para cifrar
-    //memcpy(scratchpad, "aloha", 6);
+	
+    memcpy(scratchpad, msgToEncypt, 100);
+    memset(msgToEncypt, 0, 100);
+
+
 
 
     //print_hex_dump(KERN_DEBUG, "Scratchpad: ", DUMP_PREFIX_NONE, 16, 1, scratchpad, 16, true);
@@ -147,10 +135,10 @@ static int encode_trigger( char msgToEncypt[], char keyFromUser[]) //Inicia a en
         goto out;
 
 
-	resultdata = sg_virt(&sk.sg);
-    //print_hex_dump(KERN_DEBUG, "Result Data Direct From Function: ", DUMP_PREFIX_NONE, 16, 1, resultdata, 16, true);
+    resultdata = sg_virt(&sk.sg);
+    memcpy(msgToEncypt, resultdata, 100);
+
    
-    strcpy(msgToEncypt, resultdata);
     pr_info("Encryption triggered successfully\n");
 
 out:
@@ -202,10 +190,8 @@ static int decode_trigger(char msgToDecrypt[], char keyFromUser[]) //Inicia a de
 
     skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,crypto_req_done, &sk.wait);
 
-    /* AES 256 with random key */
-    /*PARA AES 128 SELECT 16 BYTES RANDOM*/
-    //get_random_bytes(&key, 32);
-	strcpy(key, keyFromUser);
+
+    strcpy(key, keyFromUser);
 
     //ao invés de skcipher, key mudar para key, skcipher para decriptografar
     if (crypto_skcipher_setkey(skcipher, key, 16)) {
@@ -216,31 +202,19 @@ static int decode_trigger(char msgToDecrypt[], char keyFromUser[]) //Inicia a de
 
     print_hex_dump(KERN_DEBUG, "KEY: ", DUMP_PREFIX_NONE, 16, 1, key, 16, true);
 			
-    /* IV will be random */
-    //ivdata = kmalloc(16, GFP_KERNEL);
-    /*ivdata = vmalloc(16);
-    if (!ivdata) {
-        pr_info("could not allocate ivdata\n");
-        goto out;
-    }*/
-    //get_random_bytes(ivdata, 16);
-	//strcpy(ivdata, ivFromUser);
 
-    //print_hex_dump(KERN_DEBUG, "IVdata: ", DUMP_PREFIX_NONE, 16, 1,
-     //          ivdata, 16, true);
-
-
-    /* Input data will be random */
-    //scratchpad = kmalloc(16, GFP_KERNEL);
-    scratchpad = vmalloc(16);
+    scratchpad = vmalloc(100);
     if (!scratchpad) {
         pr_info("could not allocate scratchpad\n");
         goto out;
     }
     //get_random_bytes(scratchpad, 16);
-	strcpy(scratchpad, msgToDecrypt); // copiando string para cifrar
+
     
-    
+    memcpy(scratchpad, msgToDecrypt, 100);
+    memset(msgToDecrypt, 0, 100);
+
+
     printk("String para decriptar:%s", msgToDecrypt); 
 
     //memcpy(scratchpad, "aloha", 6);
@@ -266,7 +240,9 @@ static int decode_trigger(char msgToDecrypt[], char keyFromUser[]) //Inicia a de
 	resultdata = sg_virt(&sk.sg);
    // print_hex_dump(KERN_DEBUG, "Result Data Direct From Function Decrypt: ", DUMP_PREFIX_NONE, 16, 1, resultdata, 16, true);
    
-    strcpy(msgToDecrypt, resultdata);
+
+    memcpy(msgToDecrypt, resultdata, 100);
+
     pr_info("Decrypt triggered successfully\n");
 
 
@@ -289,25 +265,20 @@ void decrypt(char *string,int size_of_string, char* localKey){
                string, 16, true);
 
     int i = 0;
-    char aux[33]={0};
-    //memcpy(aux, 0, 33);
-
-    //strcpy(string, "df415e408da1fe7a82a92bc857eb17b1");
-
-
-   // for(i = 0; i < 16; i++) {
-     //   aux[i] = hex_to_ascii(string[2*i],string[(2*i)+1]);
-    //}
+    char aux[100]={0};
 
     
-    strcpy(aux, string);
+
+    memcpy(aux, string, 100);
+
     print_hex_dump(KERN_DEBUG, "AUX AFTER COPY: ", DUMP_PREFIX_NONE, 16, 1, aux, 16, true);
 
     decode_trigger(aux, localKey);
-    
     memset(string, 0, 100);
+    memcpy(string, aux, 100);
 
-    strcpy(string, aux);
+
+
 	
 
     print_hex_dump(KERN_DEBUG, "MENSAGEM DECRIPTOGRAFADA: ", DUMP_PREFIX_NONE, 16, 1,
