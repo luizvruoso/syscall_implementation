@@ -31,14 +31,13 @@ struct skcipher_def {
 };
 
 static unsigned int test_skcipher_encdec(struct skcipher_def *sk, int enc);
-static int encode_trigger( char msgToEncypt[], char keyFromUser[]);
-static int decode_trigger(char msgToDecrypt[], char keyFromUser[]);
+static int encode_trigger( char msgToEncypt[], int size_of_string, char keyFromUser[]);
+static int decode_trigger(char msgToDecrypt[], int size_of_string, char keyFromUser[]);
 void decrypt(char *string,int size_of_string, char* localKey);
 void encrypt(char *string,int size_of_string ,char* localKey);
 int hex_to_int(char c);
 int hex_to_ascii(char c, char d);
-
-
+int getRightTotalBlocksBasedOnStringSize(int size_of_string);
 /* Perform cipher operation */
 static unsigned int test_skcipher_encdec(struct skcipher_def *sk, int enc)
 {
@@ -59,9 +58,23 @@ static unsigned int test_skcipher_encdec(struct skcipher_def *sk, int enc)
 }
 
 
+int getRightTotalBlocksBasedOnStringSize(int size_of_string){
+
+    if(size_of_string%16 != 0){
+     if( (size_of_string/16)+1 > 16) return 16;
+     else return (size_of_string/16)+1;
+
+    }
+    else return size_of_string/16;
+
+
+}
+
+
+
 
 /* Initialize and trigger cipher operation */
-static int encode_trigger( char msgToEncypt[], char keyFromUser[]) //Inicia a encriptção da string
+static int encode_trigger( char msgToEncypt[], int size_of_string, char keyFromUser[]) //Inicia a encriptção da string
 {
     struct skcipher_def sk;
     struct crypto_skcipher *skcipher = NULL;
@@ -71,7 +84,6 @@ static int encode_trigger( char msgToEncypt[], char keyFromUser[]) //Inicia a en
     unsigned char key[32];
     int ret = -EFAULT;
     char *resultdata = NULL;
-    int i=0;
 
     //printk("MSG: %s, Key: %s, IV: %s \n",msgToEncypt, keyFromUser, ivFromUser);
 
@@ -106,14 +118,16 @@ static int encode_trigger( char msgToEncypt[], char keyFromUser[]) //Inicia a en
 		
 
  
-    scratchpad = vmalloc(100);
+    scratchpad = vmalloc(256);
+    memset(scratchpad, 0, 256); //zerando scratchpad
+
     if (!scratchpad) {
         pr_info("could not allocate scratchpad\n");
         goto out;
     }
-	
-    memcpy(scratchpad, msgToEncypt, 100);
-    memset(msgToEncypt, 0, 100);
+
+    memcpy(scratchpad, msgToEncypt, 256);
+    memset(msgToEncypt, 0, 256);
 
 
 
@@ -122,23 +136,24 @@ static int encode_trigger( char msgToEncypt[], char keyFromUser[]) //Inicia a en
 
     sk.tfm = skcipher;
     sk.req = req;
+    int i=0;
+
+    for(i=0; i < getRightTotalBlocksBasedOnStringSize(size_of_string); i++){
+        /* We encrypt one block */
+        sg_init_one(&sk.sg, scratchpad+(i*16), 16); //inicializa sk.sg com o conteudo do scratchpad
+        skcipher_request_set_crypt(req, &sk.sg, &sk.sg, 16, NULL);  // https://manpages.debian.org/testing/linux-manual-4.8/skcipher_request_set_crypt.9
+        crypto_init_wait(&sk.wait);
+        /* encrypt data */
+        ret = test_skcipher_encdec(&sk, 1);
+          if (ret)
+            goto out;
+
+        resultdata = sg_virt(&sk.sg);
+        memcpy(msgToEncypt+(i*16), resultdata, 16);
+
+    }
 
 
-    /* We encrypt one block */
-    sg_init_one(&sk.sg, scratchpad, 16); //inicializa sk.sg com o conteudo do scratchpad
-    skcipher_request_set_crypt(req, &sk.sg, &sk.sg, 16, NULL);  // solicita a 
-    crypto_init_wait(&sk.wait);
-
-    /* encrypt data */
-    ret = test_skcipher_encdec(&sk, 1);
-    if (ret)
-        goto out;
-
-
-    resultdata = sg_virt(&sk.sg);
-    memcpy(msgToEncypt, resultdata, 100);
-
-   
     pr_info("Encryption triggered successfully\n");
 
 out:
@@ -154,7 +169,7 @@ out:
 
 
 /* DECODE */
-static int decode_trigger(char msgToDecrypt[], char keyFromUser[]) //Inicia a decriptção da string
+static int decode_trigger(char msgToDecrypt[], int size_of_string,char keyFromUser[]) //Inicia a decriptção da string
 {
 
 
@@ -166,7 +181,6 @@ static int decode_trigger(char msgToDecrypt[], char keyFromUser[]) //Inicia a de
     unsigned char key[32];
     int ret = -EFAULT;
 	char *resultdata = NULL;
-
 
 
 
@@ -203,46 +217,43 @@ static int decode_trigger(char msgToDecrypt[], char keyFromUser[]) //Inicia a de
     print_hex_dump(KERN_DEBUG, "KEY: ", DUMP_PREFIX_NONE, 16, 1, key, 16, true);
 			
 
-    scratchpad = vmalloc(100);
+    scratchpad = vmalloc(256);
+    memset(scratchpad, 0, 256); //zerando scratchpad
+
     if (!scratchpad) {
         pr_info("could not allocate scratchpad\n");
         goto out;
     }
-    //get_random_bytes(scratchpad, 16);
 
-    
-    memcpy(scratchpad, msgToDecrypt, 100);
-    memset(msgToDecrypt, 0, 100);
+    memcpy(scratchpad, msgToDecrypt, 256);
+    memset(msgToDecrypt, 0, 256); //aqui vai estar o return da decrypt
 
 
     printk("String para decriptar:%s", msgToDecrypt); 
-
-    //memcpy(scratchpad, "aloha", 6);
 
 
     print_hex_dump(KERN_DEBUG, "Scratchpad: ", DUMP_PREFIX_NONE, 16, 1, scratchpad, 16, true);
 
     sk.tfm = skcipher;
     sk.req = req;
+    int i =0;
+    for( i=0; i < getRightTotalBlocksBasedOnStringSize(size_of_string); i++){
+        /* We encrypt one block */
+        sg_init_one(&sk.sg, scratchpad+(i*16), 16); //inicializa sk.sg com o conteudo do scratchpad
+        skcipher_request_set_crypt(req, &sk.sg, &sk.sg, 16, NULL);  // solicita a 
+        crypto_init_wait(&sk.wait);
+         /* decrypt data */ 
+        ret = test_skcipher_encdec(&sk, 0);
+        if (ret)
+            goto out;
+
+	    resultdata = sg_virt(&sk.sg);
+        
+        memcpy(msgToDecrypt+(i*16), resultdata, 16);
 
 
-    /* We encrypt one block */
-    sg_init_one(&sk.sg, scratchpad, 16); //inicializa sk.sg com o conteudo do scratchpad
-    skcipher_request_set_crypt(req, &sk.sg, &sk.sg, 16, NULL);  // solicita a 
-    crypto_init_wait(&sk.wait);
-
-    /* decrypt data */ 
-    ret = test_skcipher_encdec(&sk, 0);
-
-    if (ret)
-        goto out;
-
-	resultdata = sg_virt(&sk.sg);
-   // print_hex_dump(KERN_DEBUG, "Result Data Direct From Function Decrypt: ", DUMP_PREFIX_NONE, 16, 1, resultdata, 16, true);
+    }
    
-
-    memcpy(msgToDecrypt, resultdata, 100);
-
     pr_info("Decrypt triggered successfully\n");
 
 
@@ -265,24 +276,24 @@ void decrypt(char *string,int size_of_string, char* localKey){
                string, 16, true);
 
     int i = 0;
-    char aux[100]={0};
+    char aux[256]={0};
 
     
 
-    memcpy(aux, string, 100);
+    memcpy(aux, string, 256);
 
-    print_hex_dump(KERN_DEBUG, "AUX AFTER COPY: ", DUMP_PREFIX_NONE, 16, 1, aux, 16, true);
+    print_hex_dump(KERN_DEBUG, "AUX AFTER COPY: ", DUMP_PREFIX_NONE, 256, 1, aux, 256, true);
 
-    decode_trigger(aux, localKey);
-    memset(string, 0, 100);
-    memcpy(string, aux, 100);
+    decode_trigger(aux, size_of_string,localKey);
+    memset(string, 0, 256);
+    memcpy(string, aux, 256);
 
 
 
 	
 
-    print_hex_dump(KERN_DEBUG, "MENSAGEM DECRIPTOGRAFADA: ", DUMP_PREFIX_NONE, 16, 1,
-               string, 16, true);
+    print_hex_dump(KERN_DEBUG, "MENSAGEM DECRIPTOGRAFADA: ", DUMP_PREFIX_NONE, 256, 1,
+               string, 256, true);
 
 
     //print_hex_dump(KERN_DEBUG, "Result Data Decrypt: ", DUMP_PREFIX_NONE, 16, 1, aux, 16, true);
@@ -293,11 +304,11 @@ void decrypt(char *string,int size_of_string, char* localKey){
 
 void encrypt(char *string,int size_of_string ,char* localKey){
 	//printk(KERN_INFO "Chave %s \n",localKey);	
-     print_hex_dump(KERN_DEBUG, "MENSAGEM USER EM HEXA: ", DUMP_PREFIX_NONE, 16, 1,
-               string, 16, true);
-    encode_trigger(string, localKey);
-    print_hex_dump(KERN_DEBUG, "MENSAGEM CRIPTOGRAFADA: ", DUMP_PREFIX_NONE, 16, 1,
-               string, 16, true);
+     print_hex_dump(KERN_DEBUG, "MENSAGEM USER EM HEXA: ", DUMP_PREFIX_NONE, 256, 1,
+               string, 256, true);
+    encode_trigger(string, size_of_string,localKey);
+    print_hex_dump(KERN_DEBUG, "MENSAGEM CRIPTOGRAFADA: ", DUMP_PREFIX_NONE, 256, 1,
+               string, 256, true);
     return;
 }
 

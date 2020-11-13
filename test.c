@@ -5,7 +5,7 @@
 #include <string.h>
 int main()
 {  
-     char text[100];
+     char text[256] = {0};
     printf("Invoking 'listProcessInfo' system call");
     int fd = open("./aqui.txt", O_WRONLY|O_CREAT, 0666);
      printf("Digite um texto [max. 100 carac.]: ");
@@ -14,7 +14,7 @@ int main()
     long int ret_status = syscall(333,fd,text,strlen(text)); 
     close(fd);
     fd = open("./aqui.txt", O_RDONLY|O_CREAT, 0666);
-    char rec[100];
+    char rec[256] = {0};
     long int ret_status2 = syscall(334,fd,rec,strlen(text));
     printf("%s",rec);
          
@@ -26,9 +26,9 @@ int main()
 
     if(ret_status2 >= 0) 
          printf("System call 'read_crypt' executed correctly. Use dmesg to check processInfo\n");
-    
+   
     else 
-         printf("System call 'read_crypt' did not execute as expected\n");
+        printf("System call 'read_crypt' did not execute as expected\n");
           
           
      return 0;
