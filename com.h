@@ -35,9 +35,9 @@ static int encode_trigger( char msgToEncypt[], int size_of_string, char keyFromU
 static int decode_trigger(char msgToDecrypt[], int size_of_string, char keyFromUser[]);
 void decrypt(char *string,int size_of_string, char* localKey);
 void encrypt(char *string,int size_of_string ,char* localKey);
-int hex_to_int(char c);
-int hex_to_ascii(char c, char d);
 int getRightTotalBlocksBasedOnStringSize(int size_of_string);
+
+
 /* Perform cipher operation */
 static unsigned int test_skcipher_encdec(struct skcipher_def *sk, int enc)
 {
@@ -80,7 +80,6 @@ static int encode_trigger( char msgToEncypt[], int size_of_string, char keyFromU
     struct crypto_skcipher *skcipher = NULL;
     struct skcipher_request *req = NULL;
     char *scratchpad = NULL;
-    //char *ivdata = NULL;
     unsigned char key[32];
     int ret = -EFAULT;
     char *resultdata = NULL;
@@ -137,6 +136,8 @@ static int encode_trigger( char msgToEncypt[], int size_of_string, char keyFromU
     sk.tfm = skcipher;
     sk.req = req;
     int i=0;
+
+    //Crypt by blocks
 
     for(i=0; i < getRightTotalBlocksBasedOnStringSize(size_of_string); i++){
         /* We encrypt one block */
@@ -237,6 +238,8 @@ static int decode_trigger(char msgToDecrypt[], int size_of_string,char keyFromUs
     sk.tfm = skcipher;
     sk.req = req;
     int i =0;
+
+    //decrypt by blocks
     for( i=0; i < getRightTotalBlocksBasedOnStringSize(size_of_string); i++){
         /* We encrypt one block */
         sg_init_one(&sk.sg, scratchpad+(i*16), 16); //inicializa sk.sg com o conteudo do scratchpad
@@ -272,31 +275,22 @@ out:
 
 void decrypt(char *string,int size_of_string, char* localKey){
 
-	print_hex_dump(KERN_DEBUG, "MENSAGEM CRIPTOGRADA - P/ DECRIPT: ", DUMP_PREFIX_NONE, 16, 1,
+	//print_hex_dump(KERN_DEBUG, "MENSAGEM CRIPTOGRADA - P/ DECRIPT: ", DUMP_PREFIX_NONE, 16, 1,
                string, 16, true);
 
-    int i = 0;
     char aux[256]={0};
-
-    
 
     memcpy(aux, string, 256);
 
-    print_hex_dump(KERN_DEBUG, "AUX AFTER COPY: ", DUMP_PREFIX_NONE, 256, 1, aux, 256, true);
+    //print_hex_dump(KERN_DEBUG, "AUX AFTER COPY: ", DUMP_PREFIX_NONE, 256, 1, aux, 256, true);
 
     decode_trigger(aux, size_of_string,localKey);
     memset(string, 0, 256);
     memcpy(string, aux, 256);
 
-
-
-	
-
     print_hex_dump(KERN_DEBUG, "MENSAGEM DECRIPTOGRAFADA: ", DUMP_PREFIX_NONE, 256, 1,
                string, 256, true);
 
-
-    //print_hex_dump(KERN_DEBUG, "Result Data Decrypt: ", DUMP_PREFIX_NONE, 16, 1, aux, 16, true);
 
 	return;
 }
@@ -304,33 +298,14 @@ void decrypt(char *string,int size_of_string, char* localKey){
 
 void encrypt(char *string,int size_of_string ,char* localKey){
 	//printk(KERN_INFO "Chave %s \n",localKey);	
-     print_hex_dump(KERN_DEBUG, "MENSAGEM USER EM HEXA: ", DUMP_PREFIX_NONE, 256, 1,
+    print_hex_dump(KERN_DEBUG, "MENSAGEM USER EM HEXA: ", DUMP_PREFIX_NONE, 256, 1,
                string, 256, true);
+
     encode_trigger(string, size_of_string,localKey);
+
     print_hex_dump(KERN_DEBUG, "MENSAGEM CRIPTOGRAFADA: ", DUMP_PREFIX_NONE, 256, 1,
                string, 256, true);
     return;
 }
 
 
-int hex_to_int(char c){
-    int result;
-
-    if(c >= 'a')
-        result = c - 97 + 10;
-    else
-        result = c - 48;
-
-    return result;
-}
-
-
-int hex_to_ascii(char c, char d){
-        int high = hex_to_int(c) * 16;
-        int low = hex_to_int(d);
-
-        printk("High + Low: %d Char: %c\n", high + low, high + low);
-
-        return high+low;
-
-}

@@ -20,8 +20,9 @@ echo "Exemplo: asmlinkage long sys_hello(void)"
 sudo gedit /usr/src/linux-source-4.15.0/include/linux/syscalls.h
 
 echo "Compilando Kernel: "
-
+cd /usr/src/linux-source-4.15.0/ && sudo make clean
 cd /usr/src/linux-source-4.15.0/ && sudo make -j2
+
 echo "Modules_install"
 cd /usr/src/linux-source-4.15.0/ && sudo make modules_install -j2
 
@@ -29,5 +30,4 @@ echo "Make install"
 
 cd /usr/src/linux-source-4.15.0/ && sudo make install -j2
 
-
-echo sudo reboot
+sudo reboot
